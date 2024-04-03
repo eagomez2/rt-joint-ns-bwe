@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo - Real-time joint noise suppression and bandwidth extension of noisy reverberant wideband speech</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-GLhlTQ8iRABdZLl6O3oVMWSktQOp6b7In1Zl3/Jr59b6EGGoI1aFkw7cmDA6j6gD" crossorigin="anonymous">
+</head>
+<style>
+h3 {
+    margin-top: 25px;
+}
+
+audio {
+    width: 350px;
+}
+.text-justify {
+    text-align: justify;
+}
+</style>
+<body>
+    <div class="container">
+        <h3>Real-time joint noise suppression and bandwidth extension of noisy reverberant wideband speech</h3>
+        <p class="text-center">Esteban Gómez<sup>*†</sup>and Tom Bäckström<sup>*</sup></p>
+        <p class="text-center fst-italic">
+            <sup>*</sup>Department of Information and Communications Engineering, Aalto University, Espoo, Finland<br>
+            <sup>†</sup>Voicemod S.L., Valencia, Spain
+        </p>
+        <p class="text-center font-monospace">{esteban.gomezmellado, tom.backstrom}@aalto.fi</p>
+        <p class="text-center">
+            <img src="img/net-structure.svg" class="img-fluid" alt="net-structure">
+        </p>    
+        <h3>Abstract</h3>
+        <p class="text-justify">
+            Artificially extending the bandwidth of speech in band-limited scenarios using 16kHz (known as wideband)
+            or lower sample rates such as in VoIP or some Bluetooth applications, can significantly improve its perceptual quality.
+            Typically, clean speech is assumed as input to estimate the missing spectral information. However, such an assumption
+            falls short if it has been contaminated by noise or reverb, resulting in audible artifacts. We propose a low-complexity
+            multitasking neural network capable of performing noise suppression and bandwidth extension 16kHz to 48kHz (fullband)
+            in real-time on a CPU, mitigating such issues even if the noise cannot be completely removed from the input.
+            Instead of employing a monolithic model, we adopt a modular approach and complexity reduction methods that result in a more
+            compact model than the sum of its parts while improving its performance.
+        </p>
+        <p>
+            <span class="badge text-bg-info">Bandwidth extension</span>
+            <span class="badge text-bg-info">Noise suppression</span>
+            <span class="badge text-bg-info">Real-time</span>
+            <span class="badge text-bg-info">Deep learning</span>
+            <span class="badge text-bg-info">Multitasking</span>
+        </p>
+        <p>
+            <a class="btn btn-primary" data-bs-toggle="collapse" href="#paperLink" role="button" aria-expanded="false" aria-controls="paperLink">
+                Paper
+            </a>
+        </p>
+        <div class="collapse" id="paperLink">
+            <div class="card card-body">
+                This paper is currently under peer review process.
+            </div>
+        </div>
+        <h3>Audio examples: Noisy dry speech</h3>
+        <p class="text-justify">
+            In the following examples, the input to the model corresponds to noisy dry speech. The network's task is to simultaneously suppress
+            the noise and to predict the missing spectral content without extending the bandwidth of any residual noise if present.
+        </p>
+        <table class="table caption-top table-striped table-borderless">
+            <caption><b>Example #1</b></caption>
+            <tbody>
+              <tr>
+                <td>
+                    <figure>
+                        <figcaption><b>Noisy input (16kHz)</b></figcaption>
+                        <audio controls>
+                            <source src="audio/00_unprocessed/00_dry-female-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+                <td>
+                    <figure>
+                        <figcaption><b>Ground truth output (48kHz)</b></figcaption>
+                        <audio controls>
+                            <source src="audio/07_ground_truth/00_dry-female-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure> 
+                </td>
+                <td>
+                    <figure>
+                        <figcaption>NS + BWE</figcaption>
+                        <audio controls>
+                            <source src="audio/01_ns+bwe/00_dry-female-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <figure>
+                        <figcaption>NS<sub>L</sub> + BWE</figcaption>
+                        <audio controls>
+                            <source src="audio/02_ns_l+bwe/00_dry-female-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <figure>
+                        <figcaption>NS<sub>L</sub> + BWE<sub>F</sub></figcaption>
+                        <audio controls>
+                            <source src="audio/03_ns_l+bwe_f/00_dry-female-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <figure>
+                        <figcaption>NS + BWE<sub>L</sub></figcaption>
+                        <audio controls>
+                            <source src="audio/04_ns+bwe_l/00_dry-female-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <figure>
+                        <figcaption><b>NS<sub>F</sub> + BWE<sub>L</sub></b></figcaption>
+                        <audio controls>
+                            <source src="audio/05_ns_f+bwe_l/00_dry-female-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <figure>
+                        <figcaption>NS<sub>L</sub> + BWE<sub>L</sub></figcaption>
+                        <audio controls>
+                            <source src="audio/06_ns_l+bwe_l/00_dry-female-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+            </tbody>
+        </table>
+        <hr>
+        <table class="table caption-top table-striped table-borderless">
+            <caption><b>Example #2</b></caption>
+            <tbody>
+              <tr>
+                <td>
+                    <figure>
+                        <figcaption><b>Noisy input (16kHz)</b></figcaption>
+                        <audio controls>
+                            <source src="audio/00_unprocessed/01_dry-female-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+                <td>
+                    <figure>
+                        <figcaption><b>Ground truth output (48kHz)</b></figcaption>
+                        <audio controls>
+                            <source src="audio/07_ground_truth/01_dry-female-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure> 
+                </td>
+                <td>
+                    <figure>
+                        <figcaption>NS + BWE</figcaption>
+                        <audio controls>
+                            <source src="audio/01_ns+bwe/01_dry-female-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <figure>
+                        <figcaption>NS<sub>L</sub> + BWE</figcaption>
+                        <audio controls>
+                            <source src="audio/02_ns_l+bwe/01_dry-female-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <figure>
+                        <figcaption>NS<sub>L</sub> + BWE<sub>F</sub></figcaption>
+                        <audio controls>
+                            <source src="audio/03_ns_l+bwe_f/01_dry-female-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <figure>
+                        <figcaption>NS + BWE<sub>L</sub></figcaption>
+                        <audio controls>
+                            <source src="audio/04_ns+bwe_l/01_dry-female-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <figure>
+                        <figcaption><b>NS<sub>F</sub> + BWE<sub>L</sub></b></figcaption>
+                        <audio controls>
+                            <source src="audio/05_ns_f+bwe_l/01_dry-female-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <figure>
+                        <figcaption>NS<sub>L</sub> + BWE<sub>L</sub></figcaption>
+                        <audio controls>
+                            <source src="audio/06_ns_l+bwe_l/01_dry-female-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+            </tbody>
+        </table>
+        <hr>
+        <table class="table caption-top table-striped table-borderless">
+            <caption><b>Example #3</b></caption>
+            <tbody>
+              <tr>
+                <td>
+                    <figure>
+                        <figcaption><b>Noisy input (16kHz)</b></figcaption>
+                        <audio controls>
+                            <source src="audio/00_unprocessed/02_dry-male-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+                <td>
+                    <figure>
+                        <figcaption><b>Ground truth output (48kHz)</b></figcaption>
+                        <audio controls>
+                            <source src="audio/07_ground_truth/02_dry-male-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure> 
+                </td>
+                <td>
+                    <figure>
+                        <figcaption>NS + BWE</figcaption>
+                        <audio controls>
+                            <source src="audio/01_ns+bwe/02_dry-male-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <figure>
+                        <figcaption>NS<sub>L</sub> + BWE</figcaption>
+                        <audio controls>
+                            <source src="audio/02_ns_l+bwe/02_dry-male-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <figure>
+                        <figcaption>NS<sub>L</sub> + BWE<sub>F</sub></figcaption>
+                        <audio controls>
+                            <source src="audio/03_ns_l+bwe_f/02_dry-male-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <figure>
+                        <figcaption>NS + BWE<sub>L</sub></figcaption>
+                        <audio controls>
+                            <source src="audio/04_ns+bwe_l/02_dry-male-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <figure>
+                        <figcaption><b>NS<sub>F</sub> + BWE<sub>L</sub></b></figcaption>
+                        <audio controls>
+                            <source src="audio/05_ns_f+bwe_l/02_dry-male-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <figure>
+                        <figcaption>NS<sub>L</sub> + BWE<sub>L</sub></figcaption>
+                        <audio controls>
+                            <source src="audio/06_ns_l+bwe_l/02_dry-male-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+            </tbody>
+        </table> 
+        <h3>Audio examples: Noisy reverberant speech</h3>
+        <p class="text-justify">
+            In the following examples, the input to the model corresponds to noisy reverberant speech. In this case, along with suppressing the noise, the bandwidth must be extended for both the speech features and the room characteristics, without
+            propagating spurious extensions of any residual noise if present.
+        </p>
+        <table class="table caption-top table-striped table-borderless">
+            <caption><b>Example #4</b></caption>
+            <tbody>
+              <tr>
+                <td>
+                    <figure>
+                        <figcaption><b>Noisy input (16kHz)</b></figcaption>
+                        <audio controls>
+                            <source src="audio/00_unprocessed/03_rev-female-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+                <td>
+                    <figure>
+                        <figcaption><b>Ground truth output (48kHz)</b></figcaption>
+                        <audio controls>
+                            <source src="audio/07_ground_truth/03_rev-female-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure> 
+                </td>
+                <td>
+                    <figure>
+                        <figcaption>NS + BWE</figcaption>
+                        <audio controls>
+                            <source src="audio/01_ns+bwe/03_rev-female-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <figure>
+                        <figcaption>NS<sub>L</sub> + BWE</figcaption>
+                        <audio controls>
+                            <source src="audio/02_ns_l+bwe/03_rev-female-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <figure>
+                        <figcaption>NS<sub>L</sub> + BWE<sub>F</sub></figcaption>
+                        <audio controls>
+                            <source src="audio/03_ns_l+bwe_f/03_rev-female-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <figure>
+                        <figcaption>NS + BWE<sub>L</sub></figcaption>
+                        <audio controls>
+                            <source src="audio/04_ns+bwe_l/03_rev-female-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <figure>
+                        <figcaption><b>NS<sub>F</sub> + BWE<sub>L</sub></b></figcaption>
+                        <audio controls>
+                            <source src="audio/05_ns_f+bwe_l/03_rev-female-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <figure>
+                        <figcaption>NS<sub>L</sub> + BWE<sub>L</sub></figcaption>
+                        <audio controls>
+                            <source src="audio/06_ns_l+bwe_l/03_rev-female-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+            </tbody>
+        </table>
+        <hr>
+        <table class="table caption-top table-striped table-borderless">
+            <caption><b>Example #5</b></caption>
+            <tbody>
+              <tr>
+                <td>
+                    <figure>
+                        <figcaption><b>Noisy input (16kHz)</b></figcaption>
+                        <audio controls>
+                            <source src="audio/00_unprocessed/04_rev-male-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+                <td>
+                    <figure>
+                        <figcaption><b>Ground truth output (48kHz)</b></figcaption>
+                        <audio controls>
+                            <source src="audio/07_ground_truth/04_rev-male-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure> 
+                </td>
+                <td>
+                    <figure>
+                        <figcaption>NS + BWE</figcaption>
+                        <audio controls>
+                            <source src="audio/01_ns+bwe/04_rev-male-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <figure>
+                        <figcaption>NS<sub>L</sub> + BWE</figcaption>
+                        <audio controls>
+                            <source src="audio/02_ns_l+bwe/04_rev-male-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <figure>
+                        <figcaption>NS<sub>L</sub> + BWE<sub>F</sub></figcaption>
+                        <audio controls>
+                            <source src="audio/03_ns_l+bwe_f/04_rev-male-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <figure>
+                        <figcaption>NS + BWE<sub>L</sub></figcaption>
+                        <audio controls>
+                            <source src="audio/04_ns+bwe_l/04_rev-male-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <figure>
+                        <figcaption><b>NS<sub>F</sub> + BWE<sub>L</sub></b></figcaption>
+                        <audio controls>
+                            <source src="audio/05_ns_f+bwe_l/04_rev-male-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <figure>
+                        <figcaption>NS<sub>L</sub> + BWE<sub>L</sub></figcaption>
+                        <audio controls>
+                            <source src="audio/06_ns_l+bwe_l/04_rev-male-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+            </tbody>
+        </table>
+        <hr>
+        <table class="table caption-top table-striped table-borderless">
+            <caption><b>Example #6</b></caption>
+            <tbody>
+              <tr>
+                <td>
+                    <figure>
+                        <figcaption><b>Noisy input (16kHz)</b></figcaption>
+                        <audio controls>
+                            <source src="audio/00_unprocessed/05_rev-male-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+                <td>
+                    <figure>
+                        <figcaption><b>Ground truth output (48kHz)</b></figcaption>
+                        <audio controls>
+                            <source src="audio/07_ground_truth/05_rev-male-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure> 
+                </td>
+                <td>
+                    <figure>
+                        <figcaption>NS + BWE</figcaption>
+                        <audio controls>
+                            <source src="audio/01_ns+bwe/05_rev-male-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <figure>
+                        <figcaption>NS<sub>L</sub> + BWE</figcaption>
+                        <audio controls>
+                            <source src="audio/02_ns_l+bwe/05_rev-male-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <figure>
+                        <figcaption>NS<sub>L</sub> + BWE<sub>F</sub></figcaption>
+                        <audio controls>
+                            <source src="audio/03_ns_l+bwe_f/05_rev-male-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <figure>
+                        <figcaption>NS + BWE<sub>L</sub></figcaption>
+                        <audio controls>
+                            <source src="audio/04_ns+bwe_l/05_rev-male-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <figure>
+                        <figcaption><b>NS<sub>F</sub> + BWE<sub>L</sub></b></figcaption>
+                        <audio controls>
+                            <source src="audio/05_ns_f+bwe_l/05_rev-male-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+              <tr>
+                <td></td>
+                <td></td>
+                <td>
+                    <figure>
+                        <figcaption>NS<sub>L</sub> + BWE<sub>L</sub></figcaption>
+                        <audio controls>
+                            <source src="audio/06_ns_l+bwe_l/05_rev-male-speech.wav" type="audio/wav">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </figure>
+                </td>
+              </tr>
+            </tbody>
+        </table>
+        <hr>
+        <h3>Acknowledgment</h3>
+        <p class="text-justify">The calculations presented in this publication were carried out using the computer resources of the Aalto University of Science “Science-IT” project.</p>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js" integrity="sha384-w76AqPfDkMBDXo30jS1Sgez6pr3x5MlQ1ZAGC+nuZB+EYdgRZgiwxhTBTkF7CXvN" crossorigin="anonymous"></script>
+    </div>
+</body>
+</html>
